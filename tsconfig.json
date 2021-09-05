@@ -15,5 +15,13 @@
     "jsx": "preserve"
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx"],
-  "exclude": ["node_modules"]
+  "exclude": ["node_modules"],
+  "ts-node": {
+    "compilerOptions": {
+      "module": "commonjs",
+      "outDir": "dist",
+      "noEmit": false
+    },
+    "include": ["src"]
+  }
 }
