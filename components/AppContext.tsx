@@ -5,14 +5,11 @@ import * as antd from 'antd';
 import { Notification } from '../components/Notification';
 
 export interface service {
-  id: string;
-  domain: string;
   name: string;
-  port: string;
 }
 
 interface AppContextProps {
-  setModal: (modal: any) => void;
+  setModal: (modal: React.ReactNode | null, width?: number) => void;
 
   account: string;
   setAccount: (value: string) => void;
@@ -37,6 +34,7 @@ interface AppProviderProps {
 
 const AppProvider = ({ children }: AppProviderProps) => {
   const [modal, setModal] = React.useState<any>(null);
+  const [modalWidth, setModalWidth] = React.useState<number>(416);
 
   const [account, setAccount] = React.useState('admin');
   const [isAdmin, setIsAdmin] = React.useState(false);
@@ -80,7 +78,10 @@ const AppProvider = ({ children }: AppProviderProps) => {
   return (
     <AppContext.Provider
       value={{
-        setModal: (modal: any) => setModal(modal),
+        setModal: (modal: React.ReactNode | null, width: number = 520) => {
+          setModalWidth(width);
+          setModal(modal);
+        },
 
         account,
         setAccount,
@@ -100,6 +101,7 @@ const AppProvider = ({ children }: AppProviderProps) => {
           onCancel={() => setModal(null)}
           footer={null}
           closable={false}
+          width={modalWidth}
         >
           {modal}
         </antd.Modal>

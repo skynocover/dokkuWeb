@@ -9,51 +9,110 @@ import { getSession } from 'next-auth/client';
 
 import { Notification } from '../components/Notification';
 import { prisma } from '../database/db';
-import { AppContext } from '../components/AppContext';
+import { AppContext, service } from '../components/AppContext';
 import { DangerButton } from '../components/DangerButton';
 import { AddService } from '../modals/AddService';
+import { client } from '../utils/sshclient';
+import { AddApp } from '../modals/AddApp';
+import { DatabasesTalbe } from '../components/table/DatabasesTalbe';
 
-const Home = ({ services, error }: InferGetServerSidePropsType<typeof getServerSideProps>) => {
+const Home = ({ error }: InferGetServerSidePropsType<typeof getServerSideProps>) => {
   const appCtx = React.useContext(AppContext);
-  const [dataSource, setDataSource] = React.useState<Service[]>([]); //coulmns data
 
-  const router = useRouter();
-  const [currentPage, setCurrentPage] = React.useState<number>(1);
-  const [total, setTotal] = React.useState<number>(0);
-  const pageSize = 10;
+  const initialize = async () => {};
 
-  interface Service {
-    id: number;
-    name: string;
+  React.useEffect(() => {
+    initialize();
+  }, []);
+
+  const operations = (
+    <antd.Button
+      type="primary"
+      onClick={() => {
+        appCtx.setModal(<AddApp />);
+      }}
+    >
+      Add new App
+    </antd.Button>
+  );
+
+  const content = (
+    <>
+      <antd.Tabs defaultActiveKey="domain" tabBarExtraContent={operations}>
+        <antd.Tabs.TabPane tab="Global Domain" key="domain">
+          <DomainTable />
+        </antd.Tabs.TabPane>
+
+        <antd.Tabs.TabPane tab="Global Config" key="config">
+          <ConfigTable />
+        </antd.Tabs.TabPane>
+
+        <antd.Tabs.TabPane tab="Database" key="database">
+          <DatabasesTalbe />
+        </antd.Tabs.TabPane>
+      </antd.Tabs>
+    </>
+  );
+
+  return <MainPage content={content} menuKey="Home" />;
+};
+
+const GlobalPage = () => {};
+
+const ConfigTable = () => {
+  const appCtx = React.useContext(AppContext);
+  const [dataSource, setDataSource] = React.useState<PropsValue[]>([]); //coulmns data
+  const [restart, setRestart] = React.useState<boolean>(true);
+
+  const initialize = async () => {
+    const data = await appCtx.fetch('get', `/api/globalconfig`);
+    if (data) {
+      const reports = data.report;
+      const temp: PropsValue[] = [];
+      for (const report of reports) {
+        temp.push({
+          key: report.Key,
+          value: report.Value,
+        });
+      }
+      setDataSource(temp);
+    }
+  };
+
+  React.useEffect(() => {
+    initialize();
+  }, []);
+
+  interface PropsValue {
+    key: string;
+    value: string;
   }
 
-  const columns: ColumnsType<Service> = [
+  const columns: ColumnsType<PropsValue> = [
     {
-      title: 'Name',
+      title: 'Key',
       align: 'center',
-      dataIndex: 'name',
+      dataIndex: 'key',
     },
     {
-      title: 'Domain',
+      title: 'Value',
       align: 'center',
-      dataIndex: 'domain',
+      dataIndex: 'value',
     },
     {
-      title: 'Port',
-      align: 'center',
-      dataIndex: 'port',
-    },
-    {
+      title: 'Delete',
       align: 'center',
       render: (item) => (
         <DangerButton
-          title="刪除"
-          message="確認刪除"
+          title="Delete"
+          message="Confirm delete config key?"
           onClick={async () => {
-            let data = await appCtx.fetch('delete', `/api/service?id=${item.id}`);
+            let data = await appCtx.fetch(
+              'delete',
+              `/api/globalconfig/${item.key}?restart=${restart}`,
+            );
             if (data) {
-              router.push('/Home');
-              Notification.add('success', 'Delete Success');
+              initialize();
             }
           }}
         />
@@ -61,29 +120,176 @@ const Home = ({ services, error }: InferGetServerSidePropsType<typeof getServerS
     },
   ];
 
-  React.useEffect(() => {
-    if (error) {
-      Notification.add('error', error);
-    }
-  }, []);
+  const AddConfig = ({ onSuccess }: { onSuccess: Function }) => {
+    const appCtx = React.useContext(AppContext);
 
-  const content = (
+    React.useEffect(() => {}, []);
+
+    const onFinish = async (values: any) => {
+      appCtx.setModal(null);
+
+      const data = await appCtx.fetch('post', `/api/globalconfig`, {
+        restart: restart,
+        config: [{ key: values.key, value: values.value }],
+      });
+
+      if (data) {
+        Notification.add('success', 'Success Add');
+        onSuccess();
+      }
+    };
+
+    return (
+      <antd.Form onFinish={onFinish}>
+        <h5 className="font-weight-bold mb-4">Add Config</h5>
+
+        <antd.Form.Item label="Key" name="key" rules={[{ required: true, message: 'Input key' }]}>
+          <antd.Input prefix={<i className="fa fa-key" />} placeholder="Please input key" />
+        </antd.Form.Item>
+
+        <antd.Form.Item
+          label="Value"
+          name="value"
+          rules={[{ required: true, message: 'Input value' }]}
+        >
+          <antd.Input
+            prefix={<i className="fa fa-folder-open" />}
+            placeholder="Please input value"
+          />
+        </antd.Form.Item>
+
+        <antd.Form.Item className="text-center">
+          <antd.Button htmlType="submit">Add</antd.Button>
+        </antd.Form.Item>
+      </antd.Form>
+    );
+  };
+
+  return (
     <>
-      <div className="d-flex justify-content-end mb-2">
+      <div className="mb-2 d-flex ">
+        <div className="mx-1">Restart After Change</div>
+        <antd.Switch checked={restart} onChange={setRestart} />
+        <div className="flex-fill"></div>
         <antd.Button
           type="primary"
           onClick={() => {
-            appCtx.setModal(<AddService />);
+            appCtx.setModal(<AddConfig onSuccess={initialize} />);
           }}
         >
-          新增
+          Add Config
         </antd.Button>
       </div>
-      <antd.Table dataSource={services} columns={columns} pagination={false} />
+      <antd.Table dataSource={dataSource} columns={columns} pagination={false} />
     </>
   );
+};
 
-  return <MainPage content={content} menuKey="Home" />;
+const DomainTable = () => {
+  const appCtx = React.useContext(AppContext);
+  const [dataSource, setDataSource] = React.useState<Host[]>([]); //coulmns data
+
+  const initialize = async () => {
+    const data = await appCtx.fetch('get', `/api/globaldomain`);
+    if (data) {
+      const reports = data.report;
+
+      let hosts: Host[] = [];
+      for (const report of reports) {
+        if (report.Key === 'Domains global vhosts') {
+          const vhosts = report.Value.split(' ');
+          for (const host of vhosts) {
+            if (host !== '') {
+              hosts.push({ host });
+            }
+          }
+        }
+      }
+
+      if (hosts.length > 0) {
+        // appCtx.setGlobalDomain(hosts[0].host);
+      }
+      setDataSource(hosts);
+    }
+  };
+
+  React.useEffect(() => {
+    initialize();
+  }, []);
+
+  interface Host {
+    host: string;
+  }
+
+  const columns: ColumnsType<Host> = [
+    {
+      title: 'Host',
+      align: 'center',
+      dataIndex: 'host',
+    },
+    {
+      title: 'Delete',
+      align: 'center',
+      render: (item) => (
+        <DangerButton
+          title="Delete Domain"
+          message="Confirm delete domain?"
+          onClick={async () => {
+            let data = await appCtx.fetch('delete', `/api/globaldomain/${item.host}`, [item.host]);
+            if (data) initialize();
+          }}
+        />
+      ),
+    },
+  ];
+
+  const AddDomain = ({ onSuccess }: { onSuccess: Function }) => {
+    const appCtx = React.useContext(AppContext);
+
+    React.useEffect(() => {}, []);
+
+    const onFinish = async (values: any) => {
+      appCtx.setModal(null);
+
+      const data = await appCtx.fetch('post', `/api/globaldomain`, [values.domain]);
+
+      if (data) {
+        Notification.add('success', 'Success Add');
+        onSuccess();
+      }
+    };
+
+    return (
+      <antd.Form onFinish={onFinish}>
+        <h5 className="font-weight-bold mb-4">Add Domain</h5>
+
+        <antd.Form.Item name="domain" rules={[{ required: true, message: 'Input domain' }]}>
+          <antd.Input prefix={<i className="fa fa-user" />} placeholder="Please input domain" />
+        </antd.Form.Item>
+
+        <antd.Form.Item className="text-center">
+          <antd.Button htmlType="submit">Add</antd.Button>
+        </antd.Form.Item>
+      </antd.Form>
+    );
+  };
+
+  return (
+    <>
+      <div className="mb-2 d-flex flex-row-reverse">
+        <antd.Button
+          type="primary"
+          onClick={() => {
+            appCtx.setModal(<AddDomain onSuccess={initialize} />);
+          }}
+        >
+          Add Domain
+        </antd.Button>
+      </div>
+      <div className="m-2" />
+      <antd.Table dataSource={dataSource} columns={columns} pagination={false} />
+    </>
+  );
 };
 
 export const getServerSideProps: GetServerSideProps = async ({ req, res, query }) => {
@@ -99,10 +305,10 @@ export const getServerSideProps: GetServerSideProps = async ({ req, res, query }
       };
     }
 
-    const services = await prisma.service.findMany({
-      select: { id: true, name: true, domain: true, port: true },
-    });
-    return { props: { services } };
+    // const services = await prisma.service.findMany({
+    //   select: { id: true, name: true, domain: true, port: true },
+    // });
+    return { props: {} };
   } catch (error: any) {
     return { props: { error: error.message } };
   }

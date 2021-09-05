@@ -6,6 +6,7 @@ import { getSession } from 'next-auth/client';
 import { Notification } from '../components/Notification';
 import { prisma } from '../database/db';
 import { AppContext } from '../components/AppContext';
+import { client } from '../utils/sshclient';
 
 export default function Index({
   services,
@@ -22,7 +23,11 @@ export default function Index({
       if (error) {
         Notification.add('error', error);
       } else {
-        appCtx.setDataSource(services);
+        appCtx.setDataSource(
+          services.map((item: string) => {
+            return { name: item };
+          }),
+        );
       }
       router.push('/Home');
     }
@@ -32,12 +37,27 @@ export default function Index({
 
 export const getServerSideProps: GetServerSideProps = async ({ req, res, query }) => {
   try {
+    console.log('index init');
+    console.log(client.isInit());
+    if (!client.isInit()) {
+      return {
+        redirect: {
+          permanent: false,
+          destination: '/upload',
+        },
+        props: {},
+      };
+    }
+
     const session = await getSession({ req });
     if (!session) return { props: {} };
 
-    const services = await prisma.service.findMany({
-      select: { id: true, name: true, domain: true, port: true },
-    });
+    const list = await client.execCommand('dokku apps:list');
+
+    let services = list.split('\n');
+
+    services.shift();
+
     return { props: { services } };
   } catch (error: any) {
     return { props: { error: error.message } };

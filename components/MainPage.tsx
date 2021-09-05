@@ -59,7 +59,7 @@ const MainPage = ({ menuKey, content }: MainPageProps) => {
   };
 
   const renderMenu = () => {
-    const init: service[] = [{ id: '', name: 'Home', port: '', domain: '' }];
+    const init: service[] = [{ name: 'Home' }];
     return (
       <antd.Layout.Sider collapsible trigger={null} style={{ overflow: 'auto' }}>
         <antd.Menu
@@ -72,9 +72,9 @@ const MainPage = ({ menuKey, content }: MainPageProps) => {
         >
           {init.concat(appCtx.dataSource).map((server) => {
             return (
-              <antd.Menu.Item key={server.name}>
+              <antd.Menu.Item key={server?.name}>
                 <span className="d-flex align-items-center">
-                  <span>{server.name}</span>
+                  <span>{server?.name}</span>
                 </span>
               </antd.Menu.Item>
             );
