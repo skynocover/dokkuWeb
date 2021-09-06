@@ -1,7 +1,7 @@
 import type { NextApiRequest, NextApiResponse } from 'next';
 // import { prisma } from '../../database/db';
-import { Resp, Tresp } from '../../../resp/resp';
-import { client } from '../../../utils/sshclient';
+import { Resp, Tresp } from '../../resp/resp';
+import { client } from '../../utils/sshclient';
 
 export default async (req: NextApiRequest, res: NextApiResponse) => {
   async function postSerivce() {

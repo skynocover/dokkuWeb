@@ -1,7 +1,8 @@
 import 'dotenv/config';
-
 import express from 'express';
 import next from 'next';
+
+import { ssh } from './routers/ssh';
 
 const dev = process.env.NODE_ENV !== 'production';
 
@@ -15,6 +16,7 @@ nextApp.prepare().then(() => {
   app.use(express.urlencoded({ extended: false }));
 
   app.get('/test', (req, res) => {});
+  app.use('/api', ssh);
 
   app.get('*', (req, res) => {
     return nextHandler(req, res);
