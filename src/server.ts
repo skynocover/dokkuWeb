@@ -23,7 +23,7 @@ nextApp.prepare().then(() => {
   });
 
   const port = process.env.PORT || 8080;
-  app.listen(process.env.PORT || 8080, () => {
+  app.listen(port, () => {
     console.log(new Date(), `🚀 Server is running at port ${port}`);
   });
 });
